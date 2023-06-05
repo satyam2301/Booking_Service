@@ -1,0 +1,5 @@
+node_modules
+.idea
+.env
+combined.log
+src/config/config.json
