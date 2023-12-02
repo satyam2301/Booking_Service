@@ -161,7 +161,34 @@ async function cancelBooking(bookingId) {
   }
 }
 
+async function cancelOldBookings() {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const currentTime = new Date(Date.now() - 1000 * 300);
+    const allBookingDetails = await bookingRepository.getAll(currentTime);
+    for (const booking of allBookingDetails) {
+      const { flightId, noOfSeats } = booking.dataValues;
+      await axios.patch(
+        `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${flightId}/seats`,
+        { seats: noOfSeats, dec: false }
+      );
+    }
+    const response = await bookingRepository.cancelOldBookings(currentTime);
+    // cancel bookings whose sessions are already expired seats and occupied by those bookings should be set free
+    await transaction.commit();
+    return response;
+  } catch (error) {
+    await transaction.rollback();
+    throw new AppError(
+      'An Error occurred while running the Cron Jon',
+      StatusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
 module.exports = {
   createBooking,
   makePayment,
+  cancelBooking,
+  cancelOldBookings,
 };
